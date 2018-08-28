@@ -11,21 +11,22 @@
 // Author(s):	Alex Nankervis
 //
 
-#include "ModelAssimp.h"
+#include "AssimpModelLoader.h"
+#include "Model.h"
 #include "IndexOptimizePostTransform.h"
 
 #include <string.h>
 
-void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
+void AssimpModelLoader::OptimizeRemoveDuplicateVertices(bool depth)
 {
-    unsigned char *deduplicatedVertexData = new unsigned char [depth ? m_Header.vertexDataByteSizeDepth : m_Header.vertexDataByteSize];
+    unsigned char *deduplicatedVertexData = new unsigned char [depth ? m_pCurrentModel->m_Header.vertexDataByteSizeDepth : m_pCurrentModel->m_Header.vertexDataByteSize];
     uint32_t deduplicatedVertexDataSize = 0;
 
-    for (unsigned int meshIndex = 0; meshIndex < m_Header.meshCount; meshIndex++)
+    for (unsigned int meshIndex = 0; meshIndex < m_pCurrentModel->m_Header.meshCount; meshIndex++)
     {
-        Mesh *mesh = m_pMesh + meshIndex;
+        Mesh *mesh = m_pCurrentModel->m_pMesh + meshIndex;
         unsigned int vertexStride = depth ? mesh->vertexStrideDepth : mesh->vertexStride;
-        unsigned char *meshVertexData = depth ? (m_pVertexDataDepth + mesh->vertexDataByteOffsetDepth) : (m_pVertexData + mesh->vertexDataByteOffset);
+        unsigned char *meshVertexData = depth ? (m_pCurrentModel->m_pVertexDataDepth + mesh->vertexDataByteOffsetDepth) : (m_pCurrentModel->m_pVertexData + mesh->vertexDataByteOffset);
 
         unsigned char *meshDeduplicatedVertexData = deduplicatedVertexData + deduplicatedVertexDataSize;
         unsigned int deduplicatedCount = 0;
@@ -63,7 +64,7 @@ void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
         }
 
         unsigned int indexCount = mesh->indexCount;
-        uint16_t *indexArray = (uint16_t*)((depth ? m_pIndexDataDepth : m_pIndexData) + mesh->indexDataByteOffset);
+        uint16_t *indexArray = (uint16_t*)((depth ? m_pCurrentModel->m_pIndexDataDepth : m_pCurrentModel->m_pIndexData) + mesh->indexDataByteOffset);
         for (unsigned int n = 0; n < indexCount; n++)
         {
             indexArray[n] = vertexRemap[indexArray[n]];
@@ -86,28 +87,28 @@ void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
 
     if (depth)
     {
-        delete [] m_pVertexDataDepth;
-        m_pVertexDataDepth = deduplicatedVertexData;
-        m_Header.vertexDataByteSizeDepth = deduplicatedVertexDataSize;
+        delete [] m_pCurrentModel->m_pVertexDataDepth;
+        m_pCurrentModel->m_pVertexDataDepth = deduplicatedVertexData;
+        m_pCurrentModel->m_Header.vertexDataByteSizeDepth = deduplicatedVertexDataSize;
     }
     else
     {
-        delete [] m_pVertexData;
-        m_pVertexData = deduplicatedVertexData;
-        m_Header.vertexDataByteSize = deduplicatedVertexDataSize;
+        delete [] m_pCurrentModel->m_pVertexData;
+        m_pCurrentModel->m_pVertexData = deduplicatedVertexData;
+        m_pCurrentModel->m_Header.vertexDataByteSize = deduplicatedVertexDataSize;
     }
 }
 
-void AssimpModel::OptimizePostTransform(bool depth)
+void AssimpModelLoader::OptimizePostTransform(bool depth)
 {
     enum {lruCacheSize = 64};
 
-    for (unsigned int meshIndex = 0; meshIndex < m_Header.meshCount; meshIndex++)
+    for (unsigned int meshIndex = 0; meshIndex < m_pCurrentModel->m_Header.meshCount; meshIndex++)
     {
-        Mesh *mesh = m_pMesh + meshIndex;
+        Mesh *mesh = m_pCurrentModel->m_pMesh + meshIndex;
 
         uint16_t *srcIndices = new uint16_t [mesh->indexCount];
-        uint16_t *dstIndices = (uint16_t*)((depth ? m_pIndexDataDepth : m_pIndexData) + mesh->indexDataByteOffset);
+        uint16_t *dstIndices = (uint16_t*)((depth ? m_pCurrentModel->m_pIndexDataDepth : m_pCurrentModel->m_pIndexData) + mesh->indexDataByteOffset);
         memcpy(srcIndices, dstIndices, sizeof(uint16_t) * mesh->indexCount);
 
         OptimizeFaces<uint16_t>(srcIndices, mesh->indexCount, dstIndices, lruCacheSize);
@@ -116,16 +117,16 @@ void AssimpModel::OptimizePostTransform(bool depth)
     }
 }
 
-void AssimpModel::OptimizePreTransform(bool depth)
+void AssimpModelLoader::OptimizePreTransform(bool depth)
 {
-    unsigned char *reorderedVertexData = new unsigned char [depth ? m_Header.vertexDataByteSizeDepth : m_Header.vertexDataByteSize];
+    unsigned char *reorderedVertexData = new unsigned char [depth ? m_pCurrentModel->m_Header.vertexDataByteSizeDepth : m_pCurrentModel->m_Header.vertexDataByteSize];
 
-    for (unsigned int meshIndex = 0; meshIndex < m_Header.meshCount; meshIndex++)
+    for (unsigned int meshIndex = 0; meshIndex < m_pCurrentModel->m_Header.meshCount; meshIndex++)
     {
-        Mesh *mesh = m_pMesh + meshIndex;
+        Mesh *mesh = m_pCurrentModel->m_pMesh + meshIndex;
         unsigned int indexCount = mesh->indexCount;
         unsigned int vertexStride = depth ? mesh->vertexStrideDepth : mesh->vertexStride;
-        unsigned char *meshVertexData = depth ? (m_pVertexDataDepth + mesh->vertexDataByteOffsetDepth) : (m_pVertexData + mesh->vertexDataByteOffset);
+        unsigned char *meshVertexData = depth ? (m_pCurrentModel->m_pVertexDataDepth + mesh->vertexDataByteOffsetDepth) : (m_pCurrentModel->m_pVertexData + mesh->vertexDataByteOffset);
 
         unsigned char *meshReorderedVertexData = reorderedVertexData + (depth ? mesh->vertexDataByteOffsetDepth : mesh->vertexDataByteOffset);
         unsigned int reorderedCount = 0;
@@ -135,7 +136,7 @@ void AssimpModel::OptimizePreTransform(bool depth)
         memset(vertexRemap, (uint32_t)-1, sizeof(uint32_t) * vertexCount);
         assert(vertexCount <= (uint32_t)-1);
 
-        uint16_t *indexArray = (uint16_t*)((depth ? m_pIndexDataDepth : m_pIndexData) + mesh->indexDataByteOffset);
+        uint16_t *indexArray = (uint16_t*)((depth ? m_pCurrentModel->m_pIndexDataDepth : m_pCurrentModel->m_pIndexData) + mesh->indexDataByteOffset);
         for (unsigned int n = 0; n < indexCount; n++)
         {
             uint16_t index = indexArray[n];
@@ -157,18 +158,20 @@ void AssimpModel::OptimizePreTransform(bool depth)
 
     if (depth)
     {
-        delete [] m_pVertexDataDepth;
-        m_pVertexDataDepth = reorderedVertexData;
+        delete [] m_pCurrentModel->m_pVertexDataDepth;
+        m_pCurrentModel->m_pVertexDataDepth = reorderedVertexData;
     }
     else
     {
-        delete [] m_pVertexData;
-        m_pVertexData = reorderedVertexData;
+        delete [] m_pCurrentModel->m_pVertexData;
+        m_pCurrentModel->m_pVertexData = reorderedVertexData;
     }
 }
 
-void AssimpModel::Optimize()
+void AssimpModelLoader::Optimize()
 {
+	assert(m_pCurrentModel);
+
     // TODO: quantize/compress vertex data
 
     OptimizeRemoveDuplicateVertices(false);

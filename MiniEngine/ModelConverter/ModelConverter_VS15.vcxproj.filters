@@ -13,10 +13,10 @@
     <ClCompile Include="IndexOptimizePostTransform.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ModelAssimp.cpp">
+    <ClCompile Include="AssimpModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ModelOptimize.cpp">
+    <ClCompile Include="AssimpModelOptimize.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -27,7 +27,7 @@
     <ClInclude Include="IndexOptimizePostTransform.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="ModelAssimp.h">
+    <ClInclude Include="AssimpModelLoader.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -11,8 +11,9 @@
 // Author(s):	Alex Nankervis
 //
 
-#include "ModelAssimp.h"
-
+#include "AssimpModelLoader.h"
+#include "Model.h"
+#include "H3DModelLoader.h"
 #include <stdio.h>
 
 void PrintHelp()
@@ -27,7 +28,7 @@ void PrintModelStats(const Model *model)
 {
     printf("model stats:\n");
     
-    Model::BoundingBox bbox = model->GetBoundingBox();
+    BoundingBox bbox = model->GetBoundingBox();
     printf("bounding box: <%f, %f, %f> <%f, %f, %f>\n"
         , (float)bbox.min.GetX(), (float)bbox.min.GetY(), (float)bbox.min.GetZ()
         , (float)bbox.max.GetX(), (float)bbox.max.GetY(), (float)bbox.max.GetZ());
@@ -40,29 +41,29 @@ void PrintModelStats(const Model *model)
     printf("mesh count: %u\n", model->m_Header.meshCount);
     for (unsigned int meshIndex = 0; meshIndex < model->m_Header.meshCount; meshIndex++)
     {
-        const Model::Mesh *mesh = model->m_pMesh + meshIndex;
+        const Mesh *mesh = model->m_pMesh + meshIndex;
 
         auto printAttribFormat = [](unsigned int format) -> void
         {
             switch (format)
             {
-            case Model::attrib_format_ubyte:
+            case attrib_format_ubyte:
                 printf("ubyte");
                 break;
 
-            case Model::attrib_format_byte:
+            case attrib_format_byte:
                 printf("byte");
                 break;
 
-            case Model::attrib_format_ushort:
+            case attrib_format_ushort:
                 printf("ushort");
                 break;
 
-            case Model::attrib_format_short:
+            case attrib_format_short:
                 printf("short");
                 break;
 
-            case Model::attrib_format_float:
+            case attrib_format_float:
                 printf("float");
                 break;
             }
@@ -72,9 +73,9 @@ void PrintModelStats(const Model *model)
         printf("vertices: %u\n", mesh->vertexCount);
         printf("indices: %u\n", mesh->indexCount);
         printf("vertex stride: %u\n", mesh->vertexStride);
-        for (int n = 0; n < Model::maxAttribs; n++)
+        for (int n = 0; n < maxAttribs; n++)
         {
-            if (mesh->attrib[n].format == Model::attrib_format_none)
+            if (mesh->attrib[n].format == attrib_format_none)
                 continue;
 
             printf("attrib %d: offset %u, normalized %u, components %u, format "
@@ -86,9 +87,9 @@ void PrintModelStats(const Model *model)
 
         printf("vertices depth-only: %u\n", mesh->vertexCountDepth);
         printf("vertex stride depth-only: %u\n", mesh->vertexStrideDepth);
-        for (int n = 0; n < Model::maxAttribs; n++)
+        for (int n = 0; n < maxAttribs; n++)
         {
-            if (mesh->attribDepth[n].format == Model::attrib_format_none)
+            if (mesh->attribDepth[n].format == attrib_format_none)
                 continue;
 
             printf("attrib %d: offset %u, normalized %u, components %u, format "
@@ -103,7 +104,7 @@ void PrintModelStats(const Model *model)
     printf("material count: %u\n", model->m_Header.materialCount);
     for (unsigned int materialIndex = 0; materialIndex < model->m_Header.materialCount; materialIndex++)
     {
-        const Model::Material *material = model->m_pMaterial + materialIndex;
+        const Material *material = model->m_pMaterial + materialIndex;
 
         printf("material %u\n", materialIndex);
     }
@@ -120,29 +121,27 @@ int main(int argc, char **argv)
 
     const char *input_file = argv[1];
     const char *output_file = argv[2];
-
     printf("input file %s\n", input_file);
     printf("output file %s\n", output_file);
 
-	AssimpModel model;
-
     printf("loading...\n");
-    if (!model.Load(input_file))
+	AssimpModelLoader assimpLoader;
+	std::unique_ptr<Model> model = assimpLoader.LoadModel(input_file);
+    if (!model)
     {
         printf("failed to load model: %s\n", input_file);
         return -1;
     }
 
     printf("saving...\n");
-    if (!model.Save(output_file))
+	H3DModelLoader h3dLoader;
+    if (!h3dLoader.Save(model.get(), output_file))
     {
         printf("failed to save model: %s\n", output_file);
         return -1;
     }
 
     printf("done\n");
-
-    PrintModelStats(&model);
-
+    PrintModelStats(model.get());
     return 0;
 }

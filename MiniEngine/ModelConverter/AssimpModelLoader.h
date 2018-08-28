@@ -11,32 +11,19 @@
 
 #pragma once
 
-#include "Model.h"
+#include "ModelLoader.h"
 
-class AssimpModel : public Model
+class AssimpModelLoader : public IModelLoader
 {
 public:
-
-	enum
-	{
-		format_none = 0,
-		format_h3d, // native format
-
-		formats,
-	};
-	static const char *s_FormatString[];
-	static int FormatFromFilename(const char *filename);
-
-	virtual bool Load(const char* filename) override;
-	bool Save(const char* filename) const;
+	std::unique_ptr<Model> LoadModel(const char* filename) override;
+	std::unique_ptr<SkinnedModel> LoadSkinnedModel(const char* filename) override;
 
 private:
-
-	bool LoadAssimp(const char *filename);
-
 	void Optimize();
 	void OptimizeRemoveDuplicateVertices(bool depth);
 	void OptimizePostTransform(bool depth);
 	void OptimizePreTransform(bool depth);
-};
 
+	Model* m_pCurrentModel = nullptr;
+};
