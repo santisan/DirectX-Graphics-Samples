@@ -45,7 +45,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Packages\assimp_native.4.0.1\build\native\include;..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
@@ -62,22 +62,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="IndexOptimizePostTransform.cpp" />
-    <ClCompile Include="ModelAssimp.cpp" />
+    <ClCompile Include="AssimpModelLoader.cpp" />
     <ClCompile Include="ModelConvert.cpp" />
-    <ClCompile Include="ModelOptimize.cpp" />
+    <ClCompile Include="AssimpModelOptimize.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IndexOptimizePostTransform.h" />
-    <ClInclude Include="ModelAssimp.h" />
+    <ClInclude Include="AssimpModelLoader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalLibraryDirectories>..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Packages\assimp_native.4.0.1\build\native\lib\x64\v141\Release;..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>zlibstatic.lib;assimp-vc140-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>

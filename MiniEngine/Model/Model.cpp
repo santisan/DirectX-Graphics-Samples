@@ -60,8 +60,6 @@ void Model::Clear()
     m_Header.vertexDataByteSizeDepth = 0;
     m_pIndexDataDepth = nullptr;
 
-    ReleaseTextures();
-
     m_Header.boundingBox.min = Vector3(0.0f);
     m_Header.boundingBox.max = Vector3(0.0f);
 }

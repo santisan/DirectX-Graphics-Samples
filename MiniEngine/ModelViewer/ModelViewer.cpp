@@ -18,6 +18,7 @@
 #include "BufferManager.h"
 #include "Camera.h"
 #include "Model.h"
+#include "ModelLoader.h"
 #include "GpuBuffer.h"
 #include "CommandContext.h"
 #include "SamplerManager.h"
@@ -96,7 +97,7 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE m_BiasedDefaultSampler;
 
     D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
-    Model m_Model;
+    std::unique_ptr<Model> m_Model;
     std::vector<bool> m_pMaterialIsCutout;
 
     Vector3 m_SunDirection;
@@ -210,14 +211,17 @@ void ModelViewer::Startup( void )
     m_ExtraTextures[1] = g_ShadowBuffer.GetSRV();
 
     TextureManager::Initialize(L"Textures/");
-    ASSERT(m_Model.Load("Models/sponza.h3d"), "Failed to load model");
-    ASSERT(m_Model.m_Header.meshCount > 0, "Model contains no meshes");
+	ModelLoaderFactory modelLoaderFactory;
+	std::unique_ptr<IModelLoader> h3dModelLoader = modelLoaderFactory.CreateModelLoader(EModelLoaderType::H3D);
+	m_Model = h3dModelLoader->Load("Models/sponza.h3d");
+    ASSERT(m_Model, "Failed to load model");
+    ASSERT(m_Model->m_Header.meshCount > 0, "Model contains no meshes");
 
     // The caller of this function can override which materials are considered cutouts
-    m_pMaterialIsCutout.resize(m_Model.m_Header.materialCount);
-    for (uint32_t i = 0; i < m_Model.m_Header.materialCount; ++i)
+    m_pMaterialIsCutout.resize(m_Model->m_Header.materialCount);
+    for (uint32_t i = 0; i < m_Model->m_Header.materialCount; ++i)
     {
-        const Model::Material& mat = m_Model.m_pMaterial[i];
+        const Material& mat = m_Model->m_pMaterial[i];
         if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
             std::string(mat.texDiffusePath).find("plant") != std::string::npos ||
             std::string(mat.texDiffusePath).find("chain") != std::string::npos)
@@ -232,8 +236,8 @@ void ModelViewer::Startup( void )
 
     CreateParticleEffects();
 
-    float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
-    const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
+    float modelRadius = Length(m_Model->m_Header.boundingBox.max - m_Model->m_Header.boundingBox.min) * .5f;
+    const Vector3 eye = (m_Model->m_Header.boundingBox.min + m_Model->m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
     m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
     m_Camera.SetZRange( 1.0f, 10000.0f );
     m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
@@ -245,7 +249,7 @@ void ModelViewer::Startup( void )
     PostEffects::EnableAdaptation = true;
     SSAO::Enable = true;
 
-    Lighting::CreateRandomLights(m_Model.GetBoundingBox().min, m_Model.GetBoundingBox().max);
+    Lighting::CreateRandomLights(m_Model->GetBoundingBox().min, m_Model->GetBoundingBox().max);
 
     m_ExtraTextures[2] = Lighting::m_LightBuffer.GetSRV();
     m_ExtraTextures[3] = Lighting::m_LightShadowArray.GetSRV();
@@ -255,7 +259,7 @@ void ModelViewer::Startup( void )
 
 void ModelViewer::Cleanup( void )
 {
-    m_Model.Clear();
+    m_Model->Clear();
     Lighting::Shutdown();
 }
 
@@ -319,11 +323,11 @@ void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vie
 
     uint32_t materialIdx = 0xFFFFFFFFul;
 
-    uint32_t VertexStride = m_Model.m_VertexStride;
+    uint32_t VertexStride = m_Model->m_VertexStride;
 
-    for (uint32_t meshIndex = 0; meshIndex < m_Model.m_Header.meshCount; meshIndex++)
+    for (uint32_t meshIndex = 0; meshIndex < m_Model->m_Header.meshCount; meshIndex++)
     {
-        const Model::Mesh& mesh = m_Model.m_pMesh[meshIndex];
+        const Mesh& mesh = m_Model->m_pMesh[meshIndex];
 
         uint32_t indexCount = mesh.indexCount;
         uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
@@ -336,7 +340,7 @@ void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vie
                 continue;
 
             materialIdx = mesh.materialIndex;
-            gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model.GetSRVs(materialIdx) );
+            gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model->GetSRVs(materialIdx) );
         }
 
         gfxContext.SetConstants(4, baseVertex, materialIdx);
@@ -428,8 +432,8 @@ void ModelViewer::RenderScene( void )
     {
         gfxContext.SetRootSignature(m_RootSig);
         gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
-        gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
+        gfxContext.SetIndexBuffer(m_Model->m_IndexBuffer.IndexBufferView());
+        gfxContext.SetVertexBuffer(0, m_Model->m_VertexBuffer.VertexBufferView());
     };
 
     pfnSetupGraphicsState();
