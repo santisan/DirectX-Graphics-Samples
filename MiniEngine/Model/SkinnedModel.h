@@ -1,13 +1,14 @@
 #pragma once
 #include "Model.h"
 
+typedef uint16_t JointIndexType;
+static const JointIndexType kRootJointParentIndex = 0xFFFF;
+
 struct Joint
 {
-	typedef uint8_t IndexType;
-	static const IndexType RootJointIndex = 0xFF;
-
-	Matrix4 inverseBindPose;
-	IndexType parentIndex = RootJointIndex;
+	std::string name;
+	Matrix4 inverseBindPose = Matrix4{kIdentity};
+	JointIndexType parentIndex = kRootJointParentIndex;
 };
 
 struct Skeleton
@@ -17,17 +18,17 @@ struct Skeleton
 
 struct JointPose
 {
-	Quaternion rotation;
-	Vector3 translation;
 	float scale = 1.f;
+	Quaternion rotation = Quaternion{kIdentity};
+	Vector3 translation = Vector3{kZero};
 };
 
-struct SkeletonPose
+/*struct SkeletonPose
 {
 	Skeleton* skeleton = nullptr;
 	std::vector<JointPose> localPoses;
 	std::vector<Matrix4> globalPoses;
-};
+};*/
 
 struct AnimationSample
 {
@@ -36,8 +37,10 @@ struct AnimationSample
 
 struct AnimationClip
 {
+	std::string name;
 	Skeleton* skeleton = nullptr;
-	float framesPerSecond = 30.f;
+	float durationSeconds = 0.f;
+	float framesPerSecond = 0.f;
 	uint32_t frameCount = 0u;
 	std::vector<AnimationSample> samples;
 	bool isLooping = false;
@@ -49,6 +52,8 @@ public:
 	SkinnedModel();
 	~SkinnedModel();
 
+	// Use IDs and store these in an AnimationManager class
 	Skeleton m_Skeleton;
+	AnimationClip m_AnimationClip;
 };
 

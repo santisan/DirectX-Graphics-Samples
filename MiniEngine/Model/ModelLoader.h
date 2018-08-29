@@ -1,8 +1,6 @@
 #pragma once
 #include <memory>
-
-class Model;
-class SkinnedModel;
+#include "SkinnedModel.h"
 
 class IModelLoader
 {
