@@ -212,8 +212,10 @@ void ModelViewer::Startup( void )
 
     TextureManager::Initialize(L"Textures/");
 	ModelLoaderFactory modelLoaderFactory;
-	std::unique_ptr<IModelLoader> h3dModelLoader = modelLoaderFactory.CreateModelLoader(EModelLoaderType::H3D);
-	m_Model = h3dModelLoader->Load("Models/sponza.h3d");
+	//std::unique_ptr<IModelLoader> h3dModelLoader = modelLoaderFactory.CreateModelLoader(EModelLoaderType::H3D);
+	//m_Model = h3dModelLoader->LoadModel("Models/sponza.h3d");
+	std::unique_ptr<IModelLoader> assimpModelLoader = modelLoaderFactory.CreateModelLoader(EModelLoaderType::Assimp);
+	m_Model = assimpModelLoader->LoadSkinnedModel("Models/Running.fbx");
     ASSERT(m_Model, "Failed to load model");
     ASSERT(m_Model->m_Header.meshCount > 0, "Model contains no meshes");
 

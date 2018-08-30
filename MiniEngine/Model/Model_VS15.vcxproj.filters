@@ -13,6 +13,15 @@
     <ClCompile Include="H3DModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="AssimpModelLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AssimpModelOptimize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IndexOptimizePostTransform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -30,6 +39,12 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="H3DModelLoader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IndexOptimizePostTransform.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AssimpModelLoader.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
