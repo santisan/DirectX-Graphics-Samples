@@ -159,6 +159,7 @@ public:
     virtual ~Model();
 
     void Clear();
+	void LoadTextures();
 
 	void ComputeAllBoundingBoxes();
 	const BoundingBox& GetBoundingBox() const { return m_Header.boundingBox; }
@@ -167,11 +168,11 @@ public:
 
     struct Header
     {
-        uint32_t meshCount;
-        uint32_t materialCount;
-        uint32_t vertexDataByteSize;
-        uint32_t indexDataByteSize;
-        uint32_t vertexDataByteSizeDepth;
+        uint32_t meshCount = 0;
+        uint32_t materialCount = 0;
+        uint32_t vertexDataByteSize = 0;
+        uint32_t indexDataByteSize = 0;
+        uint32_t vertexDataByteSizeDepth = 0;
         BoundingBox boundingBox;
     };
     Header m_Header;
@@ -183,14 +184,14 @@ public:
     unsigned char *m_pIndexData;
     StructuredBuffer m_VertexBuffer;
     ByteAddressBuffer m_IndexBuffer;
-    uint32_t m_VertexStride;
+    uint32_t m_VertexStride = 0;
 
     // optimized for depth-only rendering
     unsigned char *m_pVertexDataDepth;
     unsigned char *m_pIndexDataDepth;
     StructuredBuffer m_VertexBufferDepth;
     ByteAddressBuffer m_IndexBufferDepth;
-    uint32_t m_VertexStrideDepth;
+    uint32_t m_VertexStrideDepth = 0;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
 

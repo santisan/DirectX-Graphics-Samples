@@ -59,7 +59,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 	if (scene == nullptr) {
 		return nullptr;
 	}
-
+	ASSERT(scene->HasMeshes());
 	SkinnedModel* skinnedModel = nullptr;
 	Model* model = nullptr;
 
@@ -184,87 +184,92 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		// embedded textures...
 	}
 
-	model->m_Header.materialCount = scene->mNumMaterials;
-	model->m_pMaterial = new Material[model->m_Header.materialCount];
-	memset(model->m_pMaterial, 0, sizeof(Material) * model->m_Header.materialCount);
-	for (unsigned int materialIndex = 0; materialIndex < scene->mNumMaterials; materialIndex++)
+	if (scene->HasMaterials())
 	{
-		const aiMaterial *srcMat = scene->mMaterials[materialIndex];
-		Material *dstMat = model->m_pMaterial + materialIndex;
+		model->m_Header.materialCount = scene->mNumMaterials;
+		model->m_pMaterial = new Material[model->m_Header.materialCount];
+		memset(model->m_pMaterial, 0, sizeof(Material) * model->m_Header.materialCount);
+		for (unsigned int materialIndex = 0; materialIndex < scene->mNumMaterials; materialIndex++)
+		{
+			const aiMaterial *srcMat = scene->mMaterials[materialIndex];
+			Material *dstMat = model->m_pMaterial + materialIndex;
 
-		aiColor3D diffuse(1.0f, 1.0f, 1.0f);
-		aiColor3D specular(1.0f, 1.0f, 1.0f);
-		aiColor3D ambient(1.0f, 1.0f, 1.0f);
-		aiColor3D emissive(0.0f, 0.0f, 0.0f);
-		aiColor3D transparent(1.0f, 1.0f, 1.0f);
-		float opacity = 1.0f;
-		float shininess = 0.0f;
-		float specularStrength = 1.0f;
-		aiString texDiffusePath;
-		aiString texSpecularPath;
-		aiString texEmissivePath;
-		aiString texNormalPath;
-		aiString texLightmapPath;
-		aiString texReflectionPath;
-		srcMat->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-		srcMat->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-		srcMat->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
-		srcMat->Get(AI_MATKEY_COLOR_EMISSIVE, emissive);
-		srcMat->Get(AI_MATKEY_COLOR_TRANSPARENT, transparent);
-		srcMat->Get(AI_MATKEY_OPACITY, opacity);
-		srcMat->Get(AI_MATKEY_SHININESS, shininess);
-		srcMat->Get(AI_MATKEY_SHININESS_STRENGTH, specularStrength);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), texDiffusePath);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), texSpecularPath);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_EMISSIVE, 0), texEmissivePath);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_NORMALS, 0), texNormalPath);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_LIGHTMAP, 0), texLightmapPath);
-		srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_REFLECTION, 0), texReflectionPath);
+			aiColor3D diffuse(1.0f, 1.0f, 1.0f);
+			aiColor3D specular(1.0f, 1.0f, 1.0f);
+			aiColor3D ambient(1.0f, 1.0f, 1.0f);
+			aiColor3D emissive(0.0f, 0.0f, 0.0f);
+			aiColor3D transparent(1.0f, 1.0f, 1.0f);
+			float opacity = 1.0f;
+			float shininess = 0.0f;
+			float specularStrength = 1.0f;
+			aiString texDiffusePath;
+			aiString texSpecularPath;
+			aiString texEmissivePath;
+			aiString texNormalPath;
+			aiString texLightmapPath;
+			aiString texReflectionPath;
+			srcMat->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+			srcMat->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+			srcMat->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
+			srcMat->Get(AI_MATKEY_COLOR_EMISSIVE, emissive);
+			srcMat->Get(AI_MATKEY_COLOR_TRANSPARENT, transparent);
+			srcMat->Get(AI_MATKEY_OPACITY, opacity);
+			srcMat->Get(AI_MATKEY_SHININESS, shininess);
+			srcMat->Get(AI_MATKEY_SHININESS_STRENGTH, specularStrength);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), texDiffusePath);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), texSpecularPath);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_EMISSIVE, 0), texEmissivePath);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_NORMALS, 0), texNormalPath);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_LIGHTMAP, 0), texLightmapPath);
+			srcMat->Get(AI_MATKEY_TEXTURE(aiTextureType_REFLECTION, 0), texReflectionPath);
 
-		dstMat->diffuse = Vector3(diffuse.r, diffuse.g, diffuse.b);
-		dstMat->specular = Vector3(specular.r, specular.g, specular.b);
-		dstMat->ambient = Vector3(ambient.r, ambient.g, ambient.b);
-		dstMat->emissive = Vector3(emissive.r, emissive.g, emissive.b);
-		dstMat->transparent = Vector3(transparent.r, transparent.g, transparent.b);
-		dstMat->opacity = opacity;
-		dstMat->shininess = shininess;
-		dstMat->specularStrength = specularStrength;
+			dstMat->diffuse = Vector3(diffuse.r, diffuse.g, diffuse.b);
+			dstMat->specular = Vector3(specular.r, specular.g, specular.b);
+			dstMat->ambient = Vector3(ambient.r, ambient.g, ambient.b);
+			dstMat->emissive = Vector3(emissive.r, emissive.g, emissive.b);
+			dstMat->transparent = Vector3(transparent.r, transparent.g, transparent.b);
+			dstMat->opacity = opacity;
+			dstMat->shininess = shininess;
+			dstMat->specularStrength = specularStrength;
 
-		char *pRem = nullptr;
+			char *pRem = nullptr;
 
-		strncpy_s(dstMat->texDiffusePath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texDiffusePath, texDiffusePath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texDiffusePath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texDiffusePath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texDiffusePath, texDiffusePath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texDiffusePath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		strncpy_s(dstMat->texSpecularPath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texSpecularPath, texSpecularPath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texSpecularPath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texSpecularPath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texSpecularPath, texSpecularPath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texSpecularPath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		strncpy_s(dstMat->texEmissivePath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texEmissivePath, texEmissivePath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texEmissivePath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texEmissivePath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texEmissivePath, texEmissivePath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texEmissivePath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		strncpy_s(dstMat->texNormalPath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texNormalPath, texNormalPath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texNormalPath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texNormalPath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texNormalPath, texNormalPath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texNormalPath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		strncpy_s(dstMat->texLightmapPath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texLightmapPath, texLightmapPath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texLightmapPath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texLightmapPath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texLightmapPath, texLightmapPath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texLightmapPath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		strncpy_s(dstMat->texReflectionPath, "models/", Material::maxTexPath - 1);
-		strncat_s(dstMat->texReflectionPath, texReflectionPath.C_Str(), Material::maxTexPath - 1);
-		pRem = strrchr(dstMat->texReflectionPath, '.');
-		while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
+			strncpy_s(dstMat->texReflectionPath, "models/", Material::maxTexPath - 1);
+			strncat_s(dstMat->texReflectionPath, texReflectionPath.C_Str(), Material::maxTexPath - 1);
+			pRem = strrchr(dstMat->texReflectionPath, '.');
+			while (pRem != nullptr && *pRem != 0) *(pRem++) = 0; // remove extension
 
-		aiString matName;
-		srcMat->Get(AI_MATKEY_NAME, matName);
-		strncpy_s(dstMat->name, matName.C_Str(), Material::maxMaterialName - 1);
+			aiString matName;
+			srcMat->Get(AI_MATKEY_NAME, matName);
+			strncpy_s(dstMat->name, matName.C_Str(), Material::maxMaterialName - 1);
+		}
+
+		model->LoadTextures();
 	}
 
 	model->m_Header.meshCount = scene->mNumMeshes;
@@ -317,7 +322,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		dstMesh->attrib[attrib_bitangent].format = attrib_format_float;
 		dstMesh->vertexStride += sizeof(float) * 3;
 
-		if (srcMesh->HasBones())
+		/*if (srcMesh->HasBones())
 		{
 			dstMesh->attribsEnabled |= attrib_mask_joint_indices;
 			dstMesh->attrib[attrib_joint_indices].offset = dstMesh->vertexStride;
@@ -332,7 +337,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			dstMesh->attrib[attrib_joint_weights].components = 4;
 			dstMesh->attrib[attrib_joint_weights].format = attrib_format_float;
 			dstMesh->vertexStride += sizeof(float) * 4;
-		}
+		}*/
 
 		// depth-only
 		dstMesh->attribsEnabledDepth |= attrib_mask_position;
@@ -358,6 +363,9 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 
 		model->m_Header.vertexDataByteSizeDepth += dstMesh->vertexStrideDepth * dstMesh->vertexCountDepth;
 	}
+
+	model->m_VertexStride = model->m_pMesh[0].vertexStride;
+	model->m_VertexStrideDepth = model->m_pMesh[0].vertexStrideDepth;
 
 	// allocate storage
 	model->m_pVertexData = new unsigned char[model->m_Header.vertexDataByteSize];
@@ -440,6 +448,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 				dstPosDepth[0] = srcMesh->mVertices[v].x;
 				dstPosDepth[1] = srcMesh->mVertices[v].y;
 				dstPosDepth[2] = srcMesh->mVertices[v].z;
+				DEBUGPRINT("vertex pos: %f, %f, %f", dstPos[0], dstPos[1], dstPos[2]);
 			}
 			else
 			{
@@ -505,7 +514,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			}
 			dstBitangent = (float*)((unsigned char*)dstBitangent + dstMesh->vertexStride);
 
-			if (!vertexBones.empty())
+			/*if (!vertexBones.empty())
 			{
 				dstJointIndices[0] = vertexBones[v][0].boneIndex;
 				dstJointIndices[1] = vertexBones[v][1].boneIndex;
@@ -520,7 +529,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 
 				dstJointIndices = (uint16_t*)((unsigned char*)dstJointIndices + dstMesh->vertexStride);
 				dstJointWeights = (float*)((unsigned char*)dstJointWeights + dstMesh->vertexStride);
-			}
+			}*/
 		}
 
 		uint16_t *dstIndex = (uint16_t*)(model->m_pIndexData + dstMesh->indexDataByteOffset);
@@ -541,6 +550,9 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 
 	model->ComputeAllBoundingBoxes();
 	Optimize();
+
+	DEBUGPRINT("vertex count %d", model->m_pMesh[0].vertexCount);
+	DEBUGPRINT("index count %d", model->m_pMesh[0].indexCount);
 
 	return std::unique_ptr<Model>(model);
 }

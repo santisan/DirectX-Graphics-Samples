@@ -96,7 +96,7 @@ std::unique_ptr<Model> H3DModelLoader::LoadModel(const char *filename)
     delete [] model->m_pIndexDataDepth;
 	model->m_pIndexDataDepth = nullptr;
 
-    LoadTextures(model.get());
+	model->LoadTextures();
 
     ok = true;
 
@@ -143,58 +143,6 @@ h3d_save_fail:
         ok = false;
 
     return ok;
-}
-
-void H3DModelLoader::LoadTextures(Model* model)
-{
-	ASSERT(model);
-    model->m_SRVs = new D3D12_CPU_DESCRIPTOR_HANDLE[model->m_Header.materialCount * 6];
-
-    const ManagedTexture* MatTextures[6] = {};
-
-    for (uint32_t materialIdx = 0; materialIdx < model->m_Header.materialCount; ++materialIdx)
-    {
-        const Material& pMaterial = model->m_pMaterial[materialIdx];
-
-        // Load diffuse
-        MatTextures[0] = TextureManager::LoadFromFile(pMaterial.texDiffusePath, true);
-        if (!MatTextures[0]->IsValid())
-            MatTextures[0] = TextureManager::LoadFromFile("default", true);
-
-        // Load specular
-        MatTextures[1] = TextureManager::LoadFromFile(pMaterial.texSpecularPath, true);
-        if (!MatTextures[1]->IsValid())
-        {
-            MatTextures[1] = TextureManager::LoadFromFile(std::string(pMaterial.texDiffusePath) + "_specular", true);
-            if (!MatTextures[1]->IsValid())
-                MatTextures[1] = TextureManager::LoadFromFile("default_specular", true);
-        }
-
-        // Load emissive
-        //MatTextures[2] = TextureManager::LoadFromFile(pMaterial.texEmissivePath, true);
-
-        // Load normal
-        MatTextures[3] = TextureManager::LoadFromFile(pMaterial.texNormalPath, false);
-        if (!MatTextures[3]->IsValid())
-        {
-            MatTextures[3] = TextureManager::LoadFromFile(std::string(pMaterial.texDiffusePath) + "_normal", false);
-            if (!MatTextures[3]->IsValid())
-                MatTextures[3] = TextureManager::LoadFromFile("default_normal", false);
-        }
-
-        // Load lightmap
-        //MatTextures[4] = TextureManager::LoadFromFile(pMaterial.texLightmapPath, true);
-
-        // Load reflection
-        //MatTextures[5] = TextureManager::LoadFromFile(pMaterial.texReflectionPath, true);
-
-        model->m_SRVs[materialIdx * 6 + 0] = MatTextures[0]->GetSRV();
-        model->m_SRVs[materialIdx * 6 + 1] = MatTextures[1]->GetSRV();
-        model->m_SRVs[materialIdx * 6 + 2] = MatTextures[0]->GetSRV();
-        model->m_SRVs[materialIdx * 6 + 3] = MatTextures[3]->GetSRV();
-        model->m_SRVs[materialIdx * 6 + 4] = MatTextures[0]->GetSRV();
-        model->m_SRVs[materialIdx * 6 + 5] = MatTextures[0]->GetSRV();
-    }
 }
 
 std::unique_ptr<SkinnedModel> H3DModelLoader::LoadSkinnedModel(const char* filename)

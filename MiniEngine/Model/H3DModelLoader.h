@@ -8,7 +8,4 @@ public:
 	std::unique_ptr<SkinnedModel> LoadSkinnedModel(const char* filename) override;
 	
 	bool Save(Model* model, const char *filename) const;
-
-private:
-	void LoadTextures(Model* model);
 };
