@@ -74,7 +74,7 @@ private:
     void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, eObjectFilter Filter = kAll );
     void CreateParticleEffects();
     Camera m_Camera;
-    std::auto_ptr<CameraController> m_CameraController;
+    std::unique_ptr<CameraController> m_CameraController;
     Matrix4 m_ViewProjMatrix;
     D3D12_VIEWPORT m_MainViewport;
     D3D12_RECT m_MainScissor;

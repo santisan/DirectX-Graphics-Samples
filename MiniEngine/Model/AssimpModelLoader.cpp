@@ -271,14 +271,6 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 	model->m_pMesh = new Mesh[model->m_Header.meshCount];
 	memset(model->m_pMesh, 0, sizeof(Mesh) * model->m_Header.meshCount);
 
-	struct VertexBoneData
-	{
-		float boneWeight = 0.f;
-		JointIndexType boneIndex = 0;
-	};
-	typedef std::vector<VertexBoneData> VertexBoneDataArray;
-	std::vector<VertexBoneDataArray> vertexBones;
-
 	// first pass, count everything
 	for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++)
 	{
@@ -340,31 +332,6 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			dstMesh->attrib[attrib_joint_weights].components = 4;
 			dstMesh->attrib[attrib_joint_weights].format = attrib_format_float;
 			dstMesh->vertexStride += sizeof(float) * 4;
-
-			// Fill vertex to bones mapping
-			const uint32_t BaseVertexIndex = static_cast<uint32_t>(vertexBones.size());
-			vertexBones.resize(vertexBones.size() + srcMesh->mNumVertices);
-			auto& skeletonJoints = skinnedModel->m_Skeleton.joints;
-
-			for (uint32_t i = 0; i < srcMesh->mNumBones; ++i)
-			{
-				aiBone* const bone = srcMesh->mBones[i];
-				const char* const boneName = bone->mName.C_Str();
-				
-				ASSERT(boneIndexByNameMap.find(boneName) != boneIndexByNameMap.end());
-				const JointIndexType boneIndex = boneIndexByNameMap[boneName];
-				
-				ASSERT(boneIndex < skeletonJoints.size());
-				skeletonJoints[boneIndex].inverseBindPose = Matrix4{XMMATRIX{&bone->mOffsetMatrix.Transpose().a1}};
-
-				for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex)
-				{
-					const aiVertexWeight& vertexWeight = bone->mWeights[weightIndex];
-					ASSERT(BaseVertexIndex + vertexWeight.mVertexId < vertexBones.size());
-					const VertexBoneData vertexBoneData{vertexWeight.mWeight, boneIndex};
-					vertexBones[BaseVertexIndex + vertexWeight.mVertexId].push_back(vertexBoneData);
-				}
-			}
 		}
 
 		// depth-only
@@ -392,30 +359,11 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		model->m_Header.vertexDataByteSizeDepth += dstMesh->vertexStrideDepth * dstMesh->vertexCountDepth;
 	}
 
-	for (uint32_t v = 0; v < vertexBones.size(); ++v)
-	{
-		// Set default value if bones that affect a vertex are less than 4
-		if (vertexBones[v].size() < 4)
-		{
-			for (size_t i = vertexBones[v].size(); i < 4; ++i)
-			{
-				vertexBones[v][i] = VertexBoneData{};
-			}
-		}
-		else if (vertexBones[v].size() > 4)
-		{
-			DEBUGPRINT("WARNING: More than 4 bones affecting vertex %d", v);
-			//ASSERT(false);
-		}
-	}
-
 	// allocate storage
 	model->m_pVertexData = new unsigned char[model->m_Header.vertexDataByteSize];
 	model->m_pIndexData = new unsigned char[model->m_Header.indexDataByteSize];
 	model->m_pVertexDataDepth = new unsigned char[model->m_Header.vertexDataByteSizeDepth];
 	model->m_pIndexDataDepth = new unsigned char[model->m_Header.indexDataByteSize];
-
-	uint32_t vertexBoneIndex = 0;
 
 	// second pass, fill in vertex and index data
 	for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++)
@@ -432,6 +380,54 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		float *dstJointWeights = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_joint_weights].offset);
 
 		float *dstPosDepth = reinterpret_cast<float*>(model->m_pVertexDataDepth + dstMesh->vertexDataByteOffsetDepth + dstMesh->attribDepth[attrib_position].offset);
+
+		// Vertex to bones mapping
+		struct VertexBoneData {
+			float boneWeight = 0.f;
+			JointIndexType boneIndex = 0;
+		};
+		typedef std::vector<VertexBoneData> VertexBoneDataArray;
+		std::vector<VertexBoneDataArray> vertexBones;
+
+		if (srcMesh->HasBones())
+		{
+			vertexBones.resize(srcMesh->mNumVertices);
+			for (auto& vertexBoneData : vertexBones) {
+				vertexBoneData.reserve(4);
+			}
+			auto& skeletonJoints = skinnedModel->m_Skeleton.joints;
+
+			for (uint32_t ib = 0; ib < srcMesh->mNumBones; ++ib)
+			{
+				aiBone* const bone = srcMesh->mBones[ib];
+				const char* const boneName = bone->mName.C_Str();
+
+				ASSERT(boneIndexByNameMap.find(boneName) != boneIndexByNameMap.end());
+				const JointIndexType boneIndex = boneIndexByNameMap[boneName];
+				ASSERT(boneIndex < skeletonJoints.size());
+				skeletonJoints[boneIndex].inverseBindPose = Matrix4{ XMMATRIX{ &bone->mOffsetMatrix.Transpose().a1 } };
+
+				for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex)
+				{
+					const aiVertexWeight& vertexWeight = bone->mWeights[weightIndex];
+					ASSERT(vertexWeight.mVertexId < vertexBones.size());
+					const VertexBoneData vertexBoneData{ vertexWeight.mWeight, boneIndex };
+					vertexBones[vertexWeight.mVertexId].push_back(vertexBoneData);
+				}
+			}
+
+			for (auto& vertexBoneData : vertexBones) 
+			{
+				if (vertexBoneData.size() < 4) {
+					for (size_t vi = vertexBoneData.size(); vi < 4; ++vi) {
+						vertexBoneData.emplace_back();
+					}
+				}
+				else if (vertexBoneData.size() > 4) {
+					ASSERT(false, "More than 4 bones affecting vertex");
+				}
+			}
+		}
 
 		for (unsigned int v = 0; v < dstMesh->vertexCount; v++)
 		{
@@ -511,21 +507,19 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 
 			if (!vertexBones.empty())
 			{
-				dstJointIndices[0] = vertexBones[vertexBoneIndex][0].boneIndex;
-				dstJointIndices[1] = vertexBones[vertexBoneIndex][1].boneIndex;
-				dstJointIndices[2] = vertexBones[vertexBoneIndex][2].boneIndex;
-				dstJointIndices[3] = vertexBones[vertexBoneIndex][3].boneIndex;
+				dstJointIndices[0] = vertexBones[v][0].boneIndex;
+				dstJointIndices[1] = vertexBones[v][1].boneIndex;
+				dstJointIndices[2] = vertexBones[v][2].boneIndex;
+				dstJointIndices[3] = vertexBones[v][3].boneIndex;
 				
-				dstJointWeights[0] = vertexBones[vertexBoneIndex][0].boneWeight;
-				dstJointWeights[1] = vertexBones[vertexBoneIndex][1].boneWeight;
-				dstJointWeights[2] = vertexBones[vertexBoneIndex][2].boneWeight;
-				dstJointWeights[3] = vertexBones[vertexBoneIndex][3].boneWeight;
-				ASSERT(dstJointWeights[0] + dstJointWeights[1] + dstJointWeights[2] + dstJointWeights[3] == 1.f);
+				dstJointWeights[0] = vertexBones[v][0].boneWeight;
+				dstJointWeights[1] = vertexBones[v][1].boneWeight;
+				dstJointWeights[2] = vertexBones[v][2].boneWeight;
+				dstJointWeights[3] = vertexBones[v][3].boneWeight;
+				ASSERT(Abs(1.f - (dstJointWeights[0] + dstJointWeights[1] + dstJointWeights[2] + dstJointWeights[3])) <= FLT_EPSILON);
 
 				dstJointIndices = (uint16_t*)((unsigned char*)dstJointIndices + dstMesh->vertexStride);
 				dstJointWeights = (float*)((unsigned char*)dstJointWeights + dstMesh->vertexStride);
-
-				++vertexBoneIndex;
 			}
 		}
 
@@ -544,8 +538,6 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			*dstIndexDepth++ = srcMesh->mFaces[f].mIndices[2];
 		}
 	}
-
-	ASSERT(vertexBoneIndex == vertexBones.size());
 
 	model->ComputeAllBoundingBoxes();
 	Optimize();
