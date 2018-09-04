@@ -40,6 +40,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Models\Running.fbx">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Models\Testwuson.X">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Models\sponza.h3d">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\TestAppRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\TestAppVS.hlsl">

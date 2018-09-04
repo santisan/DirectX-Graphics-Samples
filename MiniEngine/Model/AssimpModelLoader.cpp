@@ -70,7 +70,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 	{
 		skinnedModel = new SkinnedModel();
 		model = static_cast<Model*>(skinnedModel);
-		auto& skeletonJoints = skinnedModel->m_Skeleton.joints;
+		/*auto& skeletonJoints = skinnedModel->m_Skeleton.joints;
 
 		// Queue stores pairs with node to process and its parents's index in the joints array
 		typedef std::pair<const aiNode*, JointIndexType> NodeJointIndexPair;
@@ -170,7 +170,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 
 				//nodeAnim->mPositionKeys[i].mTime // TODO: need to use this?
 			}
-		}
+		}*/
 	}
 	else // no animations
 	{
@@ -294,7 +294,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		dstMesh->attrib[attrib_position].format = attrib_format_float;
 		dstMesh->vertexStride += sizeof(float) * 3;
 
-		dstMesh->attribsEnabled |= attrib_mask_texcoord0;
+		/*dstMesh->attribsEnabled |= attrib_mask_texcoord0;
 		dstMesh->attrib[attrib_texcoord0].offset = dstMesh->vertexStride;
 		dstMesh->attrib[attrib_texcoord0].normalized = 0;
 		dstMesh->attrib[attrib_texcoord0].components = 2;
@@ -321,7 +321,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		dstMesh->attrib[attrib_bitangent].components = 3;
 		dstMesh->attrib[attrib_bitangent].format = attrib_format_float;
 		dstMesh->vertexStride += sizeof(float) * 3;
-
+		*/
 		/*if (srcMesh->HasBones())
 		{
 			dstMesh->attribsEnabled |= attrib_mask_joint_indices;
@@ -380,13 +380,13 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		Mesh *dstMesh = model->m_pMesh + meshIndex;
 
 		float *dstPos = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_position].offset);
-		float *dstTexcoord0 = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_texcoord0].offset);
+		/*float *dstTexcoord0 = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_texcoord0].offset);
 		float *dstNormal = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_normal].offset);
 		float *dstTangent = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_tangent].offset);
 		float *dstBitangent = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_bitangent].offset);
 		uint16_t *dstJointIndices = reinterpret_cast<uint16_t*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_joint_indices].offset);
 		float *dstJointWeights = reinterpret_cast<float*>(model->m_pVertexData + dstMesh->vertexDataByteOffset + dstMesh->attrib[attrib_joint_weights].offset);
-
+		*/
 		float *dstPosDepth = reinterpret_cast<float*>(model->m_pVertexDataDepth + dstMesh->vertexDataByteOffsetDepth + dstMesh->attribDepth[attrib_position].offset);
 
 		// Vertex to bones mapping
@@ -397,7 +397,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 		typedef std::vector<VertexBoneData> VertexBoneDataArray;
 		std::vector<VertexBoneDataArray> vertexBones;
 
-		if (srcMesh->HasBones())
+		/*if (srcMesh->HasBones())
 		{
 			vertexBones.resize(srcMesh->mNumVertices);
 			for (auto& vertexBoneData : vertexBones) {
@@ -435,7 +435,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 					ASSERT(false, "More than 4 bones affecting vertex");
 				}
 			}
-		}
+		}*/
 
 		for (unsigned int v = 0; v < dstMesh->vertexCount; v++)
 		{
@@ -448,7 +448,6 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 				dstPosDepth[0] = srcMesh->mVertices[v].x;
 				dstPosDepth[1] = srcMesh->mVertices[v].y;
 				dstPosDepth[2] = srcMesh->mVertices[v].z;
-				DEBUGPRINT("vertex pos: %f, %f, %f", dstPos[0], dstPos[1], dstPos[2]);
 			}
 			else
 			{
@@ -458,7 +457,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			dstPos = (float*)((unsigned char*)dstPos + dstMesh->vertexStride);
 			dstPosDepth = (float*)((unsigned char*)dstPosDepth + dstMesh->vertexStrideDepth);
 
-			if (srcMesh->mTextureCoords[0])
+			/*if (srcMesh->mTextureCoords[0])
 			{
 				dstTexcoord0[0] = srcMesh->mTextureCoords[0][v].x;
 				dstTexcoord0[1] = srcMesh->mTextureCoords[0][v].y;
@@ -512,7 +511,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 				dstBitangent[1] = 1.0f;
 				dstBitangent[2] = 0.0f;
 			}
-			dstBitangent = (float*)((unsigned char*)dstBitangent + dstMesh->vertexStride);
+			dstBitangent = (float*)((unsigned char*)dstBitangent + dstMesh->vertexStride);*/
 
 			/*if (!vertexBones.empty())
 			{
@@ -549,7 +548,7 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 	}
 
 	model->ComputeAllBoundingBoxes();
-	Optimize();
+	//Optimize();
 
 	DEBUGPRINT("vertex count %d", model->m_pMesh[0].vertexCount);
 	DEBUGPRINT("index count %d", model->m_pMesh[0].indexCount);
