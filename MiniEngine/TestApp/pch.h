@@ -45,6 +45,7 @@
 
     #pragma comment(lib, "d3d12.lib")
     #pragma comment(lib, "dxgi.lib")
+	#pragma comment(lib, "d3dcompiler.lib")
 
     #define D3D12_GPU_VIRTUAL_ADDRESS_NULL      ((D3D12_GPU_VIRTUAL_ADDRESS)0)
     #define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN   ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
@@ -55,6 +56,8 @@
     #include <pix3.h>
 #endif
 
+	#include <dxgi1_4.h>
+	#include <D3Dcompiler.h>
     #include "d3dx12.h"
 
 #endif
