@@ -26,4 +26,5 @@ protected:
 
 private:
 	static HWND m_hwnd;
+	static int64_t m_LastFrameTick;
 };

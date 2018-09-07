@@ -11,11 +11,18 @@
 
 #include "pch.h"
 #include "Win32Application.h"
+#include "SystemTime.h"
+#include "GameInput.h"
 
 HWND Win32Application::m_hwnd = nullptr;
+int64_t Win32Application::m_LastFrameTick = 0i64;
 
 int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
+	SystemTime::Initialize();
+	//GameInput::Initialize();
+	m_LastFrameTick = SystemTime::GetCurrentTick();
+
 	// Parse the command line parameters
 	int argc;
 	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -68,6 +75,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
 	pSample->OnDestroy();
 
+	//GameInput::Shutdown();
+
 	// Return this part of the WM_QUIT message to Windows.
 	return static_cast<char>(msg.wParam);
 }
@@ -104,8 +113,13 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	case WM_PAINT:
 		if (pSample)
 		{
-			pSample->OnUpdate();
-			pSample->OnRender();
+			const int64_t currentTick = SystemTime::GetCurrentTick();
+			const float deltaSeconds = static_cast<float>(SystemTime::TicksToSeconds(currentTick - m_LastFrameTick));
+			m_LastFrameTick = currentTick;
+
+			//GameInput::Update(deltaSeconds);
+			pSample->OnUpdate(deltaSeconds);
+			pSample->OnRender(deltaSeconds);
 		}
 		return 0;
 

@@ -1,14 +1,10 @@
 #include "pch.h"
-#include "GameInput.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "AssimpModelLoader.h"
 #include "H3DModelLoader.h"
 #include "SkinnedModel.h"
 #include "DXSample.h"
-
-#include "CompiledShaders/TestAppVS.h"
-#include "CompiledShaders/TestAppPS.h"
 
 using namespace GameCore;
 using namespace Math;
@@ -26,19 +22,13 @@ class D3D12HelloTriangle : public DXSample
 public:
 	D3D12HelloTriangle(UINT width, UINT height, std::wstring name);
 
-	virtual void OnInit();
-	virtual void OnUpdate();
-	virtual void OnRender();
-	virtual void OnDestroy();
+	virtual void OnInit() override;
+	virtual void OnUpdate(float deltaSeconds) override;
+	virtual void OnRender(float deltaSeconds) override;
+	virtual void OnDestroy() override;
 
 private:
 	static const UINT FrameCount = 2;
-
-	struct Vertex
-	{
-		XMFLOAT3 position;
-		XMFLOAT4 color;
-	};
 
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
@@ -50,6 +40,7 @@ private:
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
 	UINT m_rtvDescriptorSize;
@@ -58,7 +49,14 @@ private:
 	std::unique_ptr<Model> m_model;
 	Camera m_camera;
 	std::unique_ptr<CameraController> m_cameraController;
-	Matrix4 m_viewProjection;
+	ComPtr<ID3D12Resource> m_vertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	ComPtr<ID3D12Resource> m_constantBuffer;
+	struct ConstantBufferVS {
+		Matrix4 worldViewProjection;
+	};
+	ConstantBufferVS m_constantBufferVSData;
+	uint8_t* m_pConstantBufferVSDataBegin;
 
 	// Synchronization objects.
 	UINT m_frameIndex;
@@ -77,7 +75,8 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
 	m_frameIndex(0),
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-	m_rtvDescriptorSize(0)
+	m_rtvDescriptorSize(0),
+	m_constantBufferVSData{Matrix4(kIdentity)}, m_pConstantBufferVSDataBegin(nullptr)
 {
 }
 
@@ -147,6 +146,12 @@ void D3D12HelloTriangle::OnInit()
 
 	LoadPipeline();
 	LoadAssets();
+
+	//const float modelRadius = Length(m_model->m_Header.boundingBox.max - m_model->m_Header.boundingBox.min) * 0.5f;
+	//const Vector3 eye = (m_model->m_Header.boundingBox.min + m_model->m_Header.boundingBox.max) * 0.5f + Vector3(modelRadius * 0.5f, 0.0f, 0.0f);
+	m_camera.SetEyeAtUp(Vector3(0.f, 0.f, -1000.f), Vector3(kZero), Vector3(kYUnitVector));
+	m_camera.SetZRange(1.0f, 10000.0f);
+	m_cameraController = std::make_unique<CameraController>(m_camera, Vector3(kYUnitVector));
 }
 
 // Load the rendering pipeline dependencies.
@@ -162,6 +167,15 @@ void D3D12HelloTriangle::LoadPipeline()
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+		// Describe and create a constant buffer view (CBV) descriptor heap.
+		// Flags indicate that this descriptor heap can be bound to the pipeline 
+		// and that descriptors contained in it can be referenced by a root table.
+		D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+		cbvHeapDesc.NumDescriptors = 1;
+		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 	}
 
 	// Create frame resources.
@@ -183,14 +197,36 @@ void D3D12HelloTriangle::LoadPipeline()
 // Load the sample assets.
 void D3D12HelloTriangle::LoadAssets()
 {
-	// Create an empty root signature.
+	// Create a root signature consisting of a descriptor table with a single CBV.
 	{
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
+		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+		CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+		// Allow input layout and deny uneccessary access to certain pipeline stages.
+		const D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+		ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 	}
 
@@ -205,9 +241,9 @@ void D3D12HelloTriangle::LoadAssets()
 		// TODO put shader code in 1 file
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
-		const auto* const shaderFilePath = L"Shaders\\TestAppShaders.hlsl";
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(shaderFilePath).c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(shaderFilePath).c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+		const auto* const shaderFilePath = L"Shaders\\TestApp.hlsl";
+		ThrowIfFailed(D3DCompileFromFile((shaderFilePath), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+		ThrowIfFailed(D3DCompileFromFile((shaderFilePath), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
 
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
@@ -232,9 +268,22 @@ void D3D12HelloTriangle::LoadAssets()
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
 	}
 
-	// TODO: create constant buffer descriptor
+	// Create the constant buffer.
 	{
+		ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(1024 * 64), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_constantBuffer)));
 
+		// Describe and create a constant buffer view.
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = static_cast<uint32_t>(AlignUp(sizeof(ConstantBufferVS), 256)); // CB size is required to be 256-byte aligned.
+		m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		// Map and initialize the constant buffer. We don't unmap this until the
+		// app closes. Keeping things mapped for the lifetime of the resource is okay.
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBufferVSDataBegin)));
+		memcpy(m_pConstantBufferVSDataBegin, &m_constantBufferVSData, sizeof(m_constantBufferVSData));
 	}
 
 	// Create the command list.
@@ -248,6 +297,41 @@ void D3D12HelloTriangle::LoadAssets()
 	m_model = assimpLoader.LoadModel("Models/duck.dae");
 	ASSERT(m_model, "Failed to load model");
 	ASSERT(m_model->m_Header.meshCount > 0, "Model contains no meshes");
+
+	// Create the vertex buffer.
+	{
+		// Define the geometry for a triangle.
+		struct Vertex {
+			Vector3 position;
+		};
+		const Vertex triangleVertices[] =
+		{
+			{ { 0.0f, 250.f, 0.0f } },
+			{ { 250.f, 250.f, 0.0f } },
+			{ { -250.f, 250.f, 0.0f } }
+		};
+
+		const UINT vertexBufferSize = sizeof(triangleVertices);
+
+		// Note: using upload heaps to transfer static data like vert buffers is not 
+		// recommended. Every time the GPU needs it, the upload heap will be marshalled 
+		// over. Please read up on Default Heap usage. An upload heap is used here for 
+		// code simplicity and because there are very few verts to actually transfer.
+		ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_vertexBuffer)));
+
+		// Copy the triangle data to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+		m_vertexBuffer->Unmap(0, nullptr);
+
+		// Initialize the vertex buffer view.
+		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+		m_vertexBufferView.SizeInBytes = vertexBufferSize;
+	}
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
@@ -269,15 +353,16 @@ void D3D12HelloTriangle::LoadAssets()
 }
 
 // Update frame-based values.
-void D3D12HelloTriangle::OnUpdate()
+void D3D12HelloTriangle::OnUpdate(float deltaSeconds)
 {
-	// TODO: delta time
-	m_cameraController->Update(0.016f);
-	m_viewProjection = m_camera.GetViewProjMatrix();
+	m_cameraController->Update(deltaSeconds);
+
+	m_constantBufferVSData.worldViewProjection = m_camera.GetViewProjMatrix();
+	memcpy(m_pConstantBufferVSDataBegin, &m_constantBufferVSData, sizeof(m_constantBufferVSData));
 }
 
 // Render the scene.
-void D3D12HelloTriangle::OnRender()
+void D3D12HelloTriangle::OnRender(float deltaSeconds)
 {
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
@@ -319,6 +404,10 @@ void D3D12HelloTriangle::PopulateCommandList()
 
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	ID3D12DescriptorHeap* ppDescriptorHeaps[] = { m_cbvHeap.Get() };
+	m_commandList->SetDescriptorHeaps(_countof(ppDescriptorHeaps), ppDescriptorHeaps);
+	m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+
 	m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -332,12 +421,16 @@ void D3D12HelloTriangle::PopulateCommandList()
 	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Draw other geometry
+	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	m_commandList->DrawInstanced(3, 1, 0, 0);
+
+	// Draw model
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferViews[] = { m_model->m_VertexBuffer.VertexBufferView() };
 	const D3D12_INDEX_BUFFER_VIEW indexBufferView = m_model->m_IndexBuffer.IndexBufferView();
 	m_commandList->IASetVertexBuffers(0, 1, vertexBufferViews);
 	m_commandList->IASetIndexBuffer(&indexBufferView);
-	
-	// TODO: set constant buffer data
 
 	//uint32_t materialIdx = 0xFFFFFFFFul;
 	const uint32_t VertexStride = m_model->m_VertexStride;

@@ -269,7 +269,8 @@ std::unique_ptr<Model> AssimpModelLoader::LoadModel(const char *filename)
 			strncpy_s(dstMat->name, matName.C_Str(), Material::maxMaterialName - 1);
 		}
 
-		model->LoadTextures();
+		// TODO: fix 
+		//model->LoadTextures();
 	}
 
 	model->m_Header.meshCount = scene->mNumMeshes;

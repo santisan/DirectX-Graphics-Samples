@@ -55,17 +55,6 @@
     <None Include="Models\sponza.h3d">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="Shaders\TestAppRS.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\TestAppVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TestAppPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXSample.h">
@@ -80,6 +69,9 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shaders\shaders.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Shaders\TestApp.hlsl">
       <Filter>Shaders</Filter>
     </CustomBuild>
   </ItemGroup>
